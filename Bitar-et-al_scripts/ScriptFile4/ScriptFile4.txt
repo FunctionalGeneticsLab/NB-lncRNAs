@@ -1,0 +1,162 @@
+
+### Define the source of data:
+Directory="/working/lab_julietF/mainaB/DeNovoAssembly/X201SC20081292-Z01-F001/raw_data/"
+
+### Retrieve NB-lncRNA IDs:
+# All lncRNAs validated in NormalCells:
+cut -f1 ${Directory}/Expressed_lncRNAs/NormalCells/lncRNAs_in_NormalCells_filteredLow_S* | sort | uniq | grep TRINITY >> lncRNAs_in_NormalCells_filteredLow
+
+### Before running:
+# Create environment:
+MainDirectory=`pwd`
+mkdir PBSin PBSout
+
+# Define local references directory:
+referencedir=/working/lab_julietF/mainaB/ReferenceGenomes
+
+# Genome file from Gencode:
+gencodegenome=${referencedir}/GRCh38.p13.genome.fa
+# Donwloaded from: ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_36/GRCh38.p13.genome.fa.gz
+
+# Prepare list of files and copy PBS header:
+grep -v "SRR7010519\|SRR7010520\|SRR7010521\|SRR7010522" ListOfSRRidentifiers >> ListOfSRRidentifiers_Individuals1to3
+cp /working/lab_julietF/mainaB/DeNovoAssembly/X201SC20081292-Z01-F001/raw_data/Header.pbs ${MainDirectory}
+# Files SRR7010519, SRR7010520, SRR7010521 and SRR7010522 correspond to individuals 4 to 7, sequenced at the 10x Genomics platform.
+
+### Run Salmon to retrieve lncRNA expression matrix:
+
+# Copy Salmon index and create output directory:
+cp -r /working/lab_julietF/mainaB/DeNovoAssembly/X201SC20081292-Z01-F001/raw_data/DifferentialExpression/SalmonIndices/filteredLowIndex_NormalCells/ ${MainDirectory}/SalmonIndices
+mkdir SalmonIndices SalmonExpressionMatrices SalmonExpressionMatrices/filteredLow
+
+# Set memory (GB) and CPUs (integer) requirements:
+memreq=24; cpureq=8
+
+# List all fastq files and create correspondent PBS files:
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do cp ${MainDirectory}/Header.pbs ${MainDirectory}/Salmon_${sample}.pbs; done
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo "#PBS -N ${sample}_Salmon" >> ${MainDirectory}/Salmon_${sample}.pbs; done
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo "#PBS -r n" >> ${MainDirectory}/Salmon_${sample}.pbs; done
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo "#PBS -l mem=${memreq}GB,walltime=24:00:00,ncpus=${cpureq}" >> ${MainDirectory}/Salmon_${sample}.pbs; done
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo -e "module load salmon/1.3.0\n" >> ${MainDirectory}/Salmon_${sample}.pbs; done
+# Add Salmon command line:
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo "salmon quant -i ${MainDirectory}/SalmonIndices/filteredLowIndex_NormalCells -p ${cpureq} -l A -1 ${MainDirectory}/${sample}_1.fastq.gz -2 ${MainDirectory}/${sample}_2.fastq.gz -o ${MainDirectory}/SalmonExpressionMatrices/filteredLow/${sample}" >> ${MainDirectory}/Salmon_${sample}.pbs; done
+
+# Submit PBS files:
+ls Salmon_*pbs | while read file; do qsub $file ; done >> JobSubmissions_Salmon
+
+# Monitor run...
+
+# After finishing:
+mv Salmon*pbs PBSin; mv *.e* PBSout; mv *.o* PBSout
+
+
+### Create Bowtie2 index:
+
+grep -c ">" /working/lab_julietF/mainaB/DeNovoAssembly/X201SC20081292-Z01-F001/raw_data/SuperTranscripts/filteredLowFPKM_NormalCells.fasta
+wc -l /working/lab_julietF/mainaB/DeNovoAssembly/X201SC20081292-Z01-F001/raw_data/FEELnc/filteredLowMinimap2_NormalCells.gtf
+
+
+# Bowtie genome output directory:
+mkdir BowtieRsemIndices BowtieExpressionMatrices BowtieExpressionMatrices/filteredLow
+
+
+# Set memory (GB) and CPUs (integer) requirements:
+memreq=12; cpureq=6
+
+# Create Bowtie PBS file:
+cp Header.pbs BowtieIndex.pbs
+echo -e "#PBS -N BowtieIndex\n#PBS -r n\n" >> BowtieIndex.pbs
+echo "#PBS -l mem=${memreq}GB,walltime=24:00:00,ncpus=${cpureq}" >> BowtieIndex.pbs
+echo "module load bowtie2/2.2.9" >> BowtieIndex.pbs
+echo "bowtie2-build --threads 6 -f ${gencodegenome} ${MainDirectory}/BowtieRsemIndices/GencodeGenome" >> BowtieIndex.pbs
+
+# Submit PBS file:
+qsub BowtieIndex.pbs
+
+
+### Run Bowtie2 to align scRNAseq samples to Gencode Genome:
+
+# Copy GTF file of all lncRNAs:
+cp /working/lab_julietF/mainaB/DeNovoAssembly/X201SC20081292-Z01-F001/raw_data/FEELnc/filteredLowMinimap2_NormalCells.gtf ${MainDirectory}/BowtieRsemIndices
+
+# Create GTF file of validated lncRNAs:
+cat lncRNAs_in_NormalCells_filteredLow | while read id; do grep '"'"${id}"'"' ${MainDirectory}/BowtieRsemIndices/filteredLowMinimap2_NormalCells.gtf >> ${MainDirectory}/BowtieRsemIndices/lncRNAs_in_filteredLowMinimap2_NormalCells.gtf; done
+
+# Set memory (GB) and CPUs (integer) requirements:
+memreq=24; cpureq=8
+
+# List all fastq files and create correspondent PBS files:
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do cp ${MainDirectory}/Header.pbs ${MainDirectory}/Bowtie2_${sample}.pbs; done
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo "#PBS -N ${sample}_Bowtie2" >> ${MainDirectory}/Bowtie2_${sample}.pbs; done
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo "#PBS -r n" >> ${MainDirectory}/Bowtie2_${sample}.pbs; done
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo "#PBS -l mem=${memreq}GB,walltime=24:00:00,ncpus=${cpureq}" >> ${MainDirectory}/Bowtie2_${sample}.pbs; done
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo -e "module load bowtie2/2.2.9\nmodule load samtools/1.9" >> ${MainDirectory}/Bowtie2_${sample}.pbs; done
+# Add Bowtie2 command line:
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo "bowtie2 --no-unal -p${cpureq} -x ${MainDirectory}/BowtieRsemIndices/GencodeGenome -1 ${MainDirectory}/${sample}_1.fastq.gz -2 ${MainDirectory}/${sample}_2.fastq.gz | samtools view -@${cpureq} -bS - >> ${MainDirectory}/BowtieExpressionMatrices/filteredLow/GencodeGenome_${sample}.bam" >> Bowtie2_${sample}.pbs; done
+
+# Submit PBS files:
+ls Bowtie2_*pbs | while read file; do qsub $file ; done >> JobSubmissions_Bowtie2
+
+# Monitor run...
+
+# After finishing:
+mv Bowtie*pbs PBSin; mv *.e* PBSout; mv *.o* PBSout
+
+
+
+### Create RSEM index:
+# Organise foldes moving Bowtie alignments:
+mkdir ${MainDirectory}/BowtieExpressionMatrices/filteredLow/Alignments
+mv ${MainDirectory}/BowtieExpressionMatrices/filteredLow/*bam ${MainDirectory}/BowtieExpressionMatrices/filteredLow/Alignments
+
+# Create transcript-to-gene map file:
+cut -f9 ${MainDirectory}/BowtieRsemIndices/lncRNAs_in_filteredLowMinimap2_NormalCells.gtf | cut -d'"' -f2 | cut -d'_' -f1-4 >> ColA
+cut -f9 ${MainDirectory}/BowtieRsemIndices/lncRNAs_in_filteredLowMinimap2_NormalCells.gtf | cut -d'"' -f2 >> ColB
+paste ColA ColB | sort | uniq >> ${MainDirectory}/BowtieRsemIndices/TranscriptToGeneMap; rm -rf ColA ColB
+
+
+# Set memory (GB) and CPUs (integer) requirements:
+memreq=12; cpureq=6
+
+# Create PBS file:
+cp Header.pbs RsemIndex.pbs
+echo -e "#PBS -N RsemIndex\n#PBS -r n\n" >> RsemIndex.pbs
+echo "#PBS -l mem=${memreq}GB,walltime=24:00:00,ncpus=${cpureq}" >> RsemIndex.pbs
+echo "module load RSEM/1.3.1" >> RsemIndex.pbs
+echo "rsem-prepare-reference -p 6 --gtf ${MainDirectory}/BowtieRsemIndices/lncRNAs_in_filteredLowMinimap2_NormalCells.gtf --transcript-to-gene-map ${MainDirectory}/BowtieRsemIndices/TranscriptToGeneMap ${gencodegenome} ${MainDirectory}/BowtieRsemIndices/filteredLow_NormalCells" >> RsemIndex.pbs
+
+# Submit PBS file:
+qsub RsemIndex.pbs
+
+
+### Run RSEM to retrieve lncRNA expression matrix:
+
+# Set memory (GB) and CPUs (integer) requirements:
+memreq=24; cpureq=8
+# List all fastq files and create correspondent PBS files:
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do cp ${MainDirectory}/Header.pbs ${MainDirectory}/RSEM_${sample}.pbs; done
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo "#PBS -N ${sample}_RSEM" >> ${MainDirectory}/RSEM_${sample}.pbs; done
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo "#PBS -r n" >> ${MainDirectory}/RSEM_${sample}.pbs; done
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo "#PBS -l mem=${memreq}GB,walltime=24:00:00,ncpus=${cpureq}" >> ${MainDirectory}/RSEM_${sample}.pbs; done
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo "module load RSEM/1.3.1" >> ${MainDirectory}/RSEM_${sample}.pbs; done
+# Add RSEM command line:
+cat ListOfSRRidentifiers_Individuals1to3 | while read sample; do echo "rsem-calculate-expression --paired-end --alignments ${MainDirectory}/BowtieExpressionMatrices/filteredLow/Alignments/GencodeGenome_${sample}.bam --single-cell-prior -p ${cpureq} ${MainDirectory}/BowtieRsemIndices/filteredLow_NormalCells ${MainDirectory}/BowtieExpressionMatrices/filteredLow/RSEM_${sample}" >> RSEM_${sample}.pbs; done
+
+# Submit PBS files:
+ls RSEM_*pbs | while read file; do qsub $file ; done >> JobSubmissions_RSEM
+
+# Monitor run...
+
+# After finishing:
+mv RSEM_*pbs PBSin; mv *.e* PBSout; mv *.o* PBSout
+
+
+
+### Formatting the count matrix
+
+# Source: https://stackoverflow.com/questions/64493316/r-counts-csv-gz-file-to-seurat-object)
+# A count matrix as an input for CreateSeuratObject() should have the cells in column and features in row and duplicate 'row.names' are not allowed.
+
+countsData<-read.delim(file = "counts.csv", header = TRUE, sep = ",")
+NormalBreast <- CreateSeuratObject(counts = countsData, sample = "NormalBreast", min.cells = 3, min.features = 200)
+

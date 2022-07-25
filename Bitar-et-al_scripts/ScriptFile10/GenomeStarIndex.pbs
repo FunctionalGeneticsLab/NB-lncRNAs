@@ -1,0 +1,9 @@
+#PBS -N Index_Star
+#PBS -r n
+#PBS -l mem=40GB,walltime=08:00:00,ncpus=12
+#PBS -m ae
+#PBS -M Maina.Bitar@qimrberghofer.edu.au
+
+module load STAR/2.7.1a
+
+STAR --runMode genomeGenerate --genomeDir /working/lab_julietF/mainaB/ReMapTCGA/StarIndex --genomeFastaFiles /working/lab_julietF/mainaB/ReferenceGenomes/GenomeGRCh38p7.fa --sjdbGTFfile /working/lab_julietF/mainaB/ReferenceGenomes/TranscriptomeGRCh38rel79_plus_mencRNAs.gtf --runThreadN 12

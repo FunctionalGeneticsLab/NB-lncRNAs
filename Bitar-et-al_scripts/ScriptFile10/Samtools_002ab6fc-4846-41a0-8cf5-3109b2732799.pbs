@@ -1,0 +1,16 @@
+##########################################################################
+#
+#  Script:    Script for BRAIN (Basic Rnaseq Analysis IN) PBS
+#  Author:    Maina Bitar
+#  Created:   2020 at QIMR Berghofer (Brisbane, Australia)
+#  Email:     Maina.Bitar@qimrberghofer.edu.au
+#
+##########################################################################
+#PBS -N Samtools_002ab6fc-4846-41a0-8cf5-3109b2732799
+#PBS -r n
+#PBS -l mem=16GB,walltime=08:00:00,ncpus=8
+#PBS -m ae
+
+module load samtools/1.9
+
+samtools view -@ 8 /working/lab_julietF/mainaB/ReMapTCGA/StarAlignment/002ab6fc-4846-41a0-8cf5-3109b2732799/110406_UNC13-SN749_0050_BB05L2ABXX.5Aligned.toTranscriptome.out.bam -f 3 -b >> /working/lab_julietF/mainaB/ReMapTCGA/SamtoolsNovosort/002ab6fc-4846-41a0-8cf5-3109b2732799_110406_UNC13-SN749_0050_BB05L2ABXX.5.samtools.bam

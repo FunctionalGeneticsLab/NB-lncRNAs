@@ -1,0 +1,18 @@
+##########################################################################
+#
+#  Script:    Script for BRAIN (Basic Rnaseq Analysis IN) PBS
+#  Author:    Maina Bitar
+#  Created:   2020 at QIMR Berghofer (Brisbane, Australia)
+#  Email:     Maina.Bitar@qimrberghofer.edu.au
+#
+##########################################################################
+#PBS -N Index_Rsem
+#PBS -r n
+#PBS -l mem=30GB,walltime=08:00:00,ncpus=7
+#PBS -m ae
+#PBS -M Maina.Bitar@qimrberghofer.edu.au
+
+module load RSEM/1.3.1
+#module load perl/5.22
+
+rsem-prepare-reference -p 6 --gtf /working/lab_julietF/mainaB/ReferenceGenomes/TranscriptomeGRCh38rel79_plusmencRNAs_plusKLNC.gtf /working/lab_julietF/mainaB/ReferenceGenomes/GenomeGRCh38p7.fa /working/lab_julietF/mainaB/ReMapTCGA/RsemIndex/RsemIndex

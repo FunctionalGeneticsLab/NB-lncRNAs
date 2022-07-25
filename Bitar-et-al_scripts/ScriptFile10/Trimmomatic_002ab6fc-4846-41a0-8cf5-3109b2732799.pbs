@@ -1,0 +1,18 @@
+##########################################################################
+#
+#  Script:    Script for BRAIN (Basic Rnaseq Analysis IN) PBS
+#  Author:    Maina Bitar
+#  Created:   2020 at QIMR Berghofer (Brisbane, Australia)
+#  Email:     Maina.Bitar@qimrberghofer.edu.au
+#
+##########################################################################
+#PBS -N PreFastQC_002ab6fc-4846-41a0-8cf5-3109b2732799
+#PBS -r n
+#PBS -l mem=5GB,walltime=08:00:00,ncpus=12
+#PBS -m ae
+
+module load fastqc/0.11.5
+
+module load trimmomatic/0.36
+
+trimmomatic PE -phred33 -threads 12 /mnt/lustre/working/genomeinfo/data/TCGA_BRCA/RNA-Seq/002ab6fc-4846-41a0-8cf5-3109b2732799/110406_UNC13-SN749_0050_BB05L2ABXX.5_1.fastq.gz /mnt/lustre/working/genomeinfo/data/TCGA_BRCA/RNA-Seq/002ab6fc-4846-41a0-8cf5-3109b2732799/110406_UNC13-SN749_0050_BB05L2ABXX.5_2.fastq.gz /working/lab_julietF/mainaB/ReMapTCGA/Trimmomatic/Trimmed_110406_UNC13-SN749_0050_BB05L2ABXX.5_1.fastq.gz /working/lab_julietF/mainaB/ReMapTCGA/Trimmomatic/Unpaired_Trimmed_110406_UNC13-SN749_0050_BB05L2ABXX.5_1.fastq.gz /working/lab_julietF/mainaB/ReMapTCGA/Trimmomatic/Trimmed_110406_UNC13-SN749_0050_BB05L2ABXX.5_2.fastq.gz /working/lab_julietF/mainaB/ReMapTCGA/Trimmomatic/Unpaired_Trimmed_110406_UNC13-SN749_0050_BB05L2ABXX.5_2.fastq.gz ILLUMINACLIP:/software/trimmomatic/trimmomatic-0.36/adapters/TruSeq3-PE-2.fa:2:30:10 SLIDINGWINDOW:4:20 MINLEN:36

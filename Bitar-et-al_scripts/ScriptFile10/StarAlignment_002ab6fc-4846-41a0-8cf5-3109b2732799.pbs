@@ -1,0 +1,16 @@
+##########################################################################
+#
+#  Script:    Script for BRAIN (Basic Rnaseq Analysis IN) PBS
+#  Author:    Maina Bitar
+#  Created:   2020 at QIMR Berghofer (Brisbane, Australia)
+#  Email:     Maina.Bitar@qimrberghofer.edu.au
+#
+##########################################################################
+#PBS -N Star_002ab6fc-4846-41a0-8cf5-3109b2732799
+#PBS -r n
+#PBS -l mem=40GB,walltime=12:00:00,ncpus=8
+#PBS -m ae
+
+module load STAR/2.7.1a
+
+STAR --runMode alignReads --readFilesIn /working/lab_julietF/mainaB/ReMapTCGA/Trimmomatic/Trimmed_110406_UNC13-SN749_0050_BB05L2ABXX.5_1.fastq.gz /working/lab_julietF/mainaB/ReMapTCGA/Trimmomatic/Trimmed_110406_UNC13-SN749_0050_BB05L2ABXX.5_2.fastq.gz --readFilesCommand zcat --outFileNamePrefix /working/lab_julietF/mainaB/ReMapTCGA/StarAlignment/002ab6fc-4846-41a0-8cf5-3109b2732799/110406_UNC13-SN749_0050_BB05L2ABXX.5 --genomeDir /working/lab_julietF/mainaB/ReMapTCGA/StarIndex --twopassMode Basic --runThreadN 8 --genomeLoad NoSharedMemory --outSJfilterReads Unique --sjdbOverhang 49 --alignSJoverhangMin 8 --alignSJDBoverhangMin 3  --outFilterType BySJout --outFilterMultimapNmax 1 --outFilterMismatchNmax 33 --outFilterMismatchNoverLmax 0.1 --alignIntronMin 20 --chimSegmentMin 20 --outSAMattributes All --outSAMstrandField intronMotif --outSAMtype BAM  SortedByCoordinate --sjdbGTFfile /working/lab_julietF/mainaB/ReferenceGenomes/TranscriptomeGRCh38rel79_plusmencRNAs_plusKLNC.gtf --quantMode TranscriptomeSAM
