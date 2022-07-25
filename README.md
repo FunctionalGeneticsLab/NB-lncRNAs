@@ -19,8 +19,8 @@
     <a href="https://github.com/FunctionalGeneticsLab/NB-lncRNAs"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/FunctionalGeneticsLab/NB-lncRNAs">View Demo</a>
-    ·
+    <!--<a href="https://github.com/FunctionalGeneticsLab/NB-lncRNAs">View Demo</a>
+    ·--->
     <a href="https://github.com/FunctionalGeneticsLab/NB-lncRNAs/issues">Report Bug</a>
     ·
     <a href="https://github.com/FunctionalGeneticsLab/NB-lncRNAs/issues">Request Feature</a>
