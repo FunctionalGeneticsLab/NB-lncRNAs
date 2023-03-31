@@ -54,7 +54,7 @@ This repository contains the scripts used for the discovery of thousands of long
 
 Each script file foccus on one part of the analysis, from De novo assembly to the remapping of the lncRNAs found on TCGA data. Scripts 1 to 11 should be executed in this order:
 
-1. Script File 1: All scripts used in the transcriptome assembly pipeline.
+1. Script File 1: "***de novo***" transcriptome pipeline.
 2. Script File 2: NB-lncRNA annotation
 3. Script File 3: Expression of NB-lncRNAs in the bulk RNAseq samples.
 4. Script File 4: Transcript counts for single-cell clustering.
@@ -65,7 +65,8 @@ Each script file foccus on one part of the analysis, from De novo assembly to th
 9. Script File 9: Slingshot trajectories.
 10. Script File 10: TCGA expression.
 11. Script File 11: MGFR.
-12. Script File 12: Accessories.
+12. Script File 12: Accessory scripts.
+
 <!-- GETTING STARTED -->
 ## Pipeline Prerequisites
 
