@@ -1,0 +1,244 @@
+
+### Step 0 - RNAseq
+# Run GRADE pipeline for every sample, stopping at the RSEM step.
+# GRADE is available at https://github.com/FunctionalGeneticsLab/GRADE
+
+
+### Step 1 - Average per tissue
+# The output of GRADE contains a table with the expected counts (ExpCounts) of each transcript for all samples, according to RSEM.
+# Use the table to calculate the average expression per tissue.
+# In the commands below, "type" is always ExpCounts.
+# The file SRA_TissueSamples.tsv contains sample names and IDs separated by a tab ("\t").
+
+type="ExpCounts"
+
+head -n1 Rsem_All_${type} | tr '\t' '\n' >> Rsem_All_ColNames
+
+cut -f2 SRA_TissueSamples.tsv | sort | uniq | while read t; do echo "$t"; tissue=`echo "${t}" | tr -d ' '`; grep -Pe "\t${t}$" SRA_TissueSamples.tsv | cut -f1 | while read s; do grep -n $s Rsem_All_ColNames | cut -d':' -f1 >> temporaryfile; done; cols=`cat temporaryfile | tr '\n' ','`; cut -f${cols}1 Rsem_All_${type} >> Rsem_All_${type}_${tissue}; rm -rf temporaryfile; done
+
+ls Rsem_All_${type}_* | while read file; do tissue=`echo "$file" | cut -d'_' -f4`; cat $file | awk 'NR==1{printf "transcript\tTISSUE\n"}; NR>1{printf "%s\t%.2f\n", $1, ($2+$3+$4+$5+$6)/5}' | sed "s/TISSUE/${tissue}/g" >> ${file}.avg; done
+
+
+### Step 2 - Log transform the average counts per tissue
+# We are following the guidelines from tispec.
+# https://rdrr.io/github/roonysgalbi/tispec/f/vignettes/UserGuide.Rmd
+# Log-transformation was performed in R 4.0.2 (R - script 1)
+
+ls Rsem_All_*.avg | cut -d'.' -f1 | while read file; do cat ${file}.avg | tr '\t' ',' >> TEMP.avg; Rscript LogTransformation.R TEMP.avg ${file}.log; rm -rf TEMP.avg; done
+
+
+### Step 3 - Quantile normalization
+# This is done to ensure that the data distribution is similar in every tissue.
+# Quantile normalization was performed in R 4.0.2 with preprocessCore (R - script 2)
+
+type="ExpCounts"
+cut -f1 Rsem_All_${type}_adiposetissue.log >> Col1; ls *log | while read file; do cut -f2 $file >> Col2_$file; done; p=`ls Col2_* | tr '\n' ' '; echo ""`; paste Col1 ${p} >> Rsem_All_${type}_AllTissues_AvgAndLog.tsv; rm -rf Col2* Col1
+
+cat Rsem_All_${type}_AllTissues_AvgAndLog.tsv | tr '\t' ',' >> Rsem_All_${type}_AllTissues_AvgAndLog.csv
+
+Rscript QuantileNormalization.R Rsem_All_${type}_AllTissues_AvgAndLog.csv Rsem_All_${type}_AllTissues_AvgAndLog.norm
+
+cat Rsem_All_${type}_AllTissues_AvgAndLog.norm | tr '\t' ',' >> TSIinput.csv
+
+
+### Step 4 - Removing "subtissues"
+# Some tissue samples were just subtypes of the same organ (e.g. left ventricle, frontal cortex).
+# These "subtissues" were removed to keep granulosity at the same level for every organ.
+# Additionally, the testicle was an outlier organ, a fact well-known. It was removed.
+
+head -n1 TSIinput.csv | tr ',' '\n' | grep -vn "thymus\|testicle\|duodenumtissue\|FetalBraintissue\|ileumtissue\|Braincerebellumtissue\|leftventricletissue\|jejunumtissue\|rightatriumtissue\|rightventricletissue\|Brainoccipitalcortextissue\|distalcolontissue\|Brainparietalcortextissue\|Brainfrontalcortextissue\|Brainstriatumtissue\|proximalcolontissue\|leftatruimtissue\|Brainstemtissue" | cut -d':' -f1 | tr '\n' ','; echo
+
+#copy text generated#
+
+cols="#paste text generated#"
+
+cut -d',' -f${cols} TSIinput.csv >> TSIinput_SelectedTissues.csv
+
+
+### Step 5 - Calculate tissue-specificity
+# We have used the tau index following the recommendation at tispec.
+# Tissue-specificity was performed in R 4.0.2 (R - script 3)
+
+Rscript TispecTau.R TSIinput_SelectedTissues.csv TAU_AvgLogQnorm
+
+
+
+### Step 6 - Format the output files
+# Tispec adds an unlabelled column for the maximum tau value of each row. This is column 2.
+# To fix the shift of columns:
+# Open the output file.
+# Add MaxTau as column name (column 2).
+# Delete the "NA" (last column)
+
+cut -f1,3- TAU_AvgLogQnorm >> TAU_AvgLogQnorm_NoTau.tsv
+
+
+
+### Step 7 - Separate transcripts in the different classes
+# Class A: Protein-coding genes from GENCODE
+# Class B: Confirmed annotated lncRNAs from GENCODE
+# Class C: NB-lncRNAs
+# The files containing the GENCODE IDs need to be available.
+
+fileA="/working/lab_julietF/mainaB/RNAatlas/InputFastQ/ProteinCoding.trID"
+fileB="/working/lab_julietF/mainaB/RNAatlas/InputFastQ/Confirmed_lncRNAs.trID"
+
+grep ENS TAU_AvgLogQnorm_NoTau.tsv >> temporary
+
+head -n1 TAU_AvgLogQnorm_NoTau.tsv >> TAU_AvgLogQnorm_NoTau_ProteinCoding.tsv; head -n1 TAU_AvgLogQnorm_NoTau.tsv >> TAU_AvgLogQnorm_NoTau_ClncRNAs.tsv
+
+cat $fileA | while read id; do grep -m1 -Pe "^${id}\t" temporary >> TAU_AvgLogQnorm_NoTau_ProteinCoding.tsv; done &
+
+cat $fileB | while read id; do grep -m1 -Pe "^${id}\t" temporary >> TAU_AvgLogQnorm_NoTau_ClncRNAs.tsv; done &
+
+grep "transcript\|TRINITY" TAU_AvgLogQnorm_NoTau.tsv >> TAU_AvgLogQnorm_NoTau_NBlncRNAs.tsv
+
+
+
+### Step 8 - Retrieve the tissue with maximum value of tau per transcript'
+# Some transcripts have no detectable expression across all tissues.
+# These were removed.
+# For every transcript, retrieve the tissue with maximum tau (Bash - script 4).
+
+cat TAU_AvgLogQnorm_NoTau_ClncRNAs.tsv | awk 'NR==1{print};NR>1{s=0; for (i=2;i<=NF;i++) s+=$i; if (s!=0)print}' >> TAU_AvgLogQnorm_NoZeros_ClncRNAs.tsv
+cat TAU_AvgLogQnorm_NoTau_ProteinCoding.tsv | awk 'NR==1{print};NR>1{s=0; for (i=2;i<=NF;i++) s+=$i; if (s!=0)print}' >> TAU_AvgLogQnorm_NoZeros_ProteinCoding.tsv
+cat TAU_AvgLogQnorm_NoTau_NBlncRNAs.tsv | awk 'NR==1{print};NR>1{s=0; for (i=2;i<=NF;i++) s+=$i; if (s!=0)print}' >> TAU_AvgLogQnorm_NoZeros_NBlncRNAs.tsv
+
+./GetMaxPerRow.sh TAU_AvgLogQnorm_NoZeros_ClncRNAs.tsv transcript
+./GetMaxPerRow.sh TAU_AvgLogQnorm_NoZeros_ProteinCoding.tsv transcript
+./GetMaxPerRow.sh TAU_AvgLogQnorm_NoZeros_NBlncRNAs.tsv transcript
+
+
+
+### Step 9 - Prepare input files for heatmap
+# Create csv files for heatmaps.
+# Since only one line is present per file, duplicate to run the heatmap.
+# Tissue names were modified for better understanding at publication.
+
+fileN="/working/lab_julietF/mainaB/RNAatlas/InputFastQ/TissueNames"
+
+ls MaxPerRow_TAU_AvgLogQnorm_NoZeros_*.tsv | cut -d'.' -f1 | while read file; do line1=`cut -f2 ${file}.tsv | grep -v "transcript" | sort | uniq -c | sort -k1,1 -nbr | cut -c9- | while read tissue; do grep "^${tissue}" $fileN | cut -f2; done | tr '\n' ',' | rev | cut -c2- | rev`; echo -e "Tissue,${line1}" >> ${file}_ForLHM.csv; line2=`cut -f2 ${file}.tsv | grep -v "transcript" | sort | uniq -c | sort -k1,1 -nbr | cut -c1-8 | tr -d ' ' | tr '\n' ',' | rev | cut -c2- | rev`; echo -e "MaxTauCounts,${line2}" >> ${file}_ForLHM.csv; echo -e "Duplicate,${line2}" >> ${file}_ForLHM.csv; done
+
+
+### Step 10 - Run heatmaps
+# Heatmaps were plotted using R 4.0.2 (R - script 5).
+
+ls Max*ForLHM* | cut -d'.' -f1 | while read file; do Rscript HeatmapL.R ${file}.csv LineHeatmap_Scaled_${file}.pdf row; done
+ls Max*ForLHM* | cut -d'.' -f1 | while read file; do Rscript HeatmapL.R ${file}.csv LineHeatmap_Unscaled_${file}.pdf none; done
+
+
+
+
+### SCRIPTS ###
+
+### Script 1 (LogTransformation.R):
+#!/usr/bin/env Rscript
+# Arguments are: args[1] = csv table of counts // args[2] = output name
+
+# Use arguments:
+args<-commandArgs(TRUE)
+
+# Read input file:
+df<-read.csv(args[1], header=TRUE, row.names=1)
+
+# Transform:
+df_log <- as.data.frame(log2(as.matrix(df)))
+
+# Format:
+names(df_log) <- names(df)
+row.names(df_log) <- row.names(df)
+df_log <- cbind(transcript = rownames(df_log), df_log)
+
+# Save output as tsv:
+write.table(df_log, file=args[2], quote=FALSE, sep='\t', row.names=F)
+
+
+### Script 2 (QuantileNormalization.R):
+#!/usr/bin/env Rscript
+# Arguments are: args[1] = csv table of counts // args[2] = output name
+
+# Use arguments:
+args<-commandArgs(TRUE)
+
+# Load library:
+library(preprocessCore)
+
+# Read input file:
+df<-read.csv(args[1], header=TRUE, row.names=1)
+
+# Normalise:
+df_norm <- as.data.frame(normalize.quantiles(as.matrix(df)))
+
+# Format:
+names(df_norm) <- names(df)
+row.names(df_norm) <- row.names(df)
+df_norm <- cbind(Transcript = rownames(df_norm), df_norm)
+
+# Save output as tsv:
+write.table(df_norm, file=args[2], quote=FALSE, sep='\t', row.names=F)
+
+
+### Script 3 (TispecTau.R):
+#!/usr/bin/env Rscript
+# Arguments are: args[1] = csv table of counts // args[2] = output name
+
+# Use arguments:
+args<-commandArgs(TRUE)
+
+# Load library:
+library(tispec)
+
+# Read input file:
+df<-read.csv(args[1], header=TRUE, row.names=1)
+
+# Normalise:
+df_tau <- as.data.frame(calcTau(df))
+
+# Format:
+names(df_tau) <- names(df)
+row.names(df_tau) <- row.names(df)
+df_tau <- cbind(transcript = rownames(df_tau), df_tau)
+
+# Save output as tsv:
+write.table(df_tau, file=args[2], quote=FALSE, sep='\t', row.names=F)
+
+
+### Script 4 (GetMaxPerRow.sh):
+#!/bin/sh
+# User must be in the correct folder.
+# The arguments are the file name and the name for column one.
+
+file=$1
+colname=$2
+
+cat $file | awk 'NR>1{max=$1+0;c=1;for(i=2;i<=NF;i++)if($i+0>max){c=i;max=$i+0} printf "%.0f\t%s\n",max, c}' | while read line; do col=`echo "$line" | cut -f2` ; cut -f${col} $file | head -n1 >> InterFile_2; done
+cut -f1 $file | grep -v "$colname" >> InterFile_1
+
+paste InterFile_1 InterFile_2 >> MaxPerRow_${file}
+
+rm -rf InterFile_*
+
+
+### Script 5 (LinearHeatmap.R):
+#!/usr/bin/env Rscript
+# Arguments are: args[1] = csv table of counts // args[2] = output name // args[3] = how to scale (row or none)
+
+# Use arguments:
+args<-commandArgs(TRUE)
+
+# Load libraries:
+library("pheatmap")
+
+data <- read.csv(file=args[1], header=TRUE, row.names=1)
+data1 <- as.matrix(data)
+
+my_col_order <- colnames(data1)
+
+pdf(args[2],width=8,height=2,paper='special')
+pheatmap(data1[,my_col_order], cluster_cols=FALSE, fontsize_col=7, show_rownames=T, border_color=NA, scale=args[3])
+dev.off()
+
+
+
+
+
