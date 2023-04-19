@@ -1,27 +1,27 @@
 cff-version: 1.0.0
 message: "If you use this software, please cite it as below."
 authors:
-  - family-names: Bitar
-    given-names: Main{\'{a}}
+  - family-names: "Bitar"
+    given-names: "Maina"
     orcid: "https://orcid.org/0000-0003-4103-8008"
-  - family-names: Rivera
-    given-names: Isela Sarahi
-  - family-names: Almeida 
-    given-names: Isabela
+  - family-names: "Rivera"
+    given-names: "Isela Sarahi"
+  - family-names: "Almeida"
+    given-names: "Isabela"
     orcid: "https://orcid.org/0000-0001-9995-782X"
-  - family-names: Shi
-    given-names: Wei
-  - family-names: Ferguson
-    given-names: Kaltin
-  - family-names: Beesley
-    given-names: Jonathan
-  - family-names: Lakhani
-    given-names: Sunil R
-  - family-names: Edwards
-    given-names: Stacey L
-  - family-names: French
-    given-names: Juliet D
-title: FunctionalGeneticsLab/NB-lncRNAs: NAR release
+  - family-names: "Shi"
+    given-names: "Wei"
+  - family-names: "Ferguson"
+    given-names: "Kaltin"
+  - family-names: "Beesley"
+    given-names: "Jonathan"
+  - family-names: "Lakhani"
+    given-names: "Sunil R"
+  - family-names: "Edwards"
+    given-names: "Stacey L"
+  - family-names: "French"
+    given-names: "Juliet D"
+title: "FunctionalGeneticsLab/NB-lncRNAs: NAR release"
 version: v1.0.0
 doi: 10.5281/zenodo.7844189
 date-released: 2023-04-19
